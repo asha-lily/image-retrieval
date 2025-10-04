@@ -8,7 +8,7 @@ from vector_search import retriever
 config = dotenv_values(".env")
 
 
-def main():
+def run():
     model = OllamaLLM(model = config["CHAT_MODEL"])
 
     prompt_template = """
@@ -42,4 +42,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run()
