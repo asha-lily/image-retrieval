@@ -11,8 +11,10 @@ not to add to an existing DB. The db_location must not already exist.
 import os
 import pandas as pd
 from pathlib import Path
-from pydantic import BaseModel
 from dotenv import dotenv_values, load_dotenv
+
+from pydantic_core import PydanticCustomError
+from pydantic import BaseModel, field_validator
 
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
@@ -78,16 +80,38 @@ class CreateVectorDB:
         return retriever
 
     def run(self, csv_path: str, num_docs_to_retrieve: int):
-
-        if os.path.exists(self.db_location):
-            print(f"DB already exists in location {self.db_location}")
         
-        else:
-            print("Adding data to vector DB...")
-            documents, ids = self.load_data_as_documents(csv_path)
-            vector_store = self.add_documents_to_vector_store(documents, ids)
-            retriever = self.get_retriever(vector_store, num_docs_to_retrieve)
-            print("Complete")
+        print("Adding data to vector DB...")
+        documents, ids = self.load_data_as_documents(csv_path)
+        vector_store = self.add_documents_to_vector_store(documents, ids)
+        retriever = self.get_retriever(vector_store, num_docs_to_retrieve)
+        print("Complete")
+
+
+class ValidateVectorDBVars(BaseModel):
+    db_location: Path
+    embedding_model: str
+    collection_name: str
+    csv_path: Path
+    num_docs_to_retrieve: int
+
+    @field_validator("db_location")
+    def validate_db_location(cls, value: Path):
+        if value.exists():
+            raise PydanticCustomError(
+                "path_already_exists_error",
+                "Vector DB path already exists.",
+                {"path": value}
+            )
+
+    @field_validator("csv_path")
+    def validate_csv_path(cls, value: Path):
+        if not value.exists():
+            raise PydanticCustomError(
+                "path_doesn't_exist_error",
+                "CSV path doesn't exist.",
+                {"path": value}
+            )
 
 
 def main():
@@ -97,6 +121,14 @@ def main():
     collection_name = config["COLLECTION_NAME"]
     csv_path = Path(config["DATA_CSV_PATH"])
     num_docs_to_retrieve = config["NUM_DOCS_TO_RETRIEVE"]
+
+    ValidateVectorDBVars(
+        db_location=db_location,
+        embedding_model=embedding_model,
+        collection_name=collection_name,
+        csv_path=csv_path,
+        num_docs_to_retrieve=num_docs_to_retrieve
+    )
 
     create_vector_db = CreateVectorDB(db_location, embedding_model, collection_name)
     create_vector_db.run(csv_path, num_docs_to_retrieve)
