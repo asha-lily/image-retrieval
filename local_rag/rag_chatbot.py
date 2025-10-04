@@ -1,3 +1,8 @@
+
+"""
+Main file to run in terminal to enable user to send questions to the RAG chatbot.
+"""
+
 from dotenv import dotenv_values
 from langchain_ollama.llms import OllamaLLM
 from langchain_ollama import OllamaEmbeddings

@@ -3,53 +3,104 @@
 - Vector database hosted locally using ChromaDB
 - When user asks a question, we look up relevant docs in the database
 - Pass retrieved docs + original question to LLM
+
+NOTE: currently this code only allows you to create a DB from scratch,
+not to add to an existing DB. The db_location must not already exist.
 """
 
 import os
 import pandas as pd
-from dotenv import dotenv_values
+from pathlib import Path
+from pydantic import BaseModel
+from dotenv import dotenv_values, load_dotenv
 
-from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
+from langchain_ollama import OllamaEmbeddings
 from langchain_core.documents import Document
+from langchain_core.vectorstores import VectorStoreRetriever
 
 
-config = dotenv_values(".env")
+config = dotenv_values("/Users/ashapatel/Documents/projects/local-rag/.env")
 
 
-df = pd.read_csv("pizza_reviews.csv")
-embeddings = OllamaEmbeddings(model = config["EMBEDDING_MODEL"])
+class CreateVectorDB:
 
-db_location = "./chroma_langchain_db"
-add_docs_to_db = not os.path.exists(db_location) 
+    def __init__(
+        self,
+        db_location: Path,
+        embedding_model: str,
+        collection_name: str
+    ):
+        self.db_location = db_location
+        self.embeddings = OllamaEmbeddings(model=embedding_model)
+        self.collection_name = collection_name
 
-# if db doesn't already exist, add the data
-if add_docs_to_db:
-    documents = []
-    ids = []
+    @staticmethod
+    def load_data_as_documents(csv_path: Path) -> tuple[list, list]:
+        """
+        Load csv data into a list of documents and ids.
+        This format is required by the vector data base.
+        """
+        data_df = pd.read_csv(csv_path)
+        documents = []
+        ids = []
+        for i, row in data_df.iterrows():
+            document = Document(
+                page_content=row["Title"] + " " + row["Review"],
+                metadata = {"rating": row["Rating"], "date": row["Date"]},
+                id = str(i)
+            )
+            ids.append(str(i))
+            documents.append(document)
 
-    for i, row in df.iterrows():
-        document = Document(
-            page_content=row["Title"] + " " + row["Review"],
-            metadata = {"rating": row["Rating"], "date": row["Date"]},
-            id = str(i)
+        return documents, ids
+
+    def add_documents_to_vector_store(self, documents: list, ids: list) -> Chroma:
+        """
+        Initialise the vector store and add the embedded data.
+        """
+        vector_store = Chroma(
+            collection_name = self.collection_name,
+            persist_directory = self.db_location,
+            embedding_function = self.embeddings
         )
+        vector_store.add_documents(documents=documents, ids=ids)
+        return vector_store
 
-        ids.append(str(i))
-        documents.append(document)
+    @staticmethod
+    def get_retriever(vector_store: Chroma, num_docs_to_retrieve: int) -> VectorStoreRetriever:
+        """
+        Make vector store retrievable by LLM.
+        """
+        retriever = vector_store.as_retriever(
+            search_kwargs = {"k": num_docs_to_retrieve} 
+        )
+        return retriever
 
-# initialise the vector store
-vector_store = Chroma(
-    collection_name = "pizza_reviews",
-    persist_directory = db_location,
-    embedding_function = embeddings
-)
+    def run(self, csv_path: str, num_docs_to_retrieve: int):
 
-# add embedded docs to vector store
-if add_docs_to_db:
-    vector_store.add_documents(documents=documents, ids=ids)
+        if os.path.exists(self.db_location):
+            print(f"DB already exists in location {self.db_location}")
+        
+        else:
+            print("Adding data to vector DB...")
+            documents, ids = self.load_data_as_documents(csv_path)
+            vector_store = self.add_documents_to_vector_store(documents, ids)
+            retriever = self.get_retriever(vector_store, num_docs_to_retrieve)
+            print("Complete")
 
-# make vector store retrievable by LLM
-retriever = vector_store.as_retriever(
-    search_kwargs = {"k": 5} # num docs to lookup
-)
+
+def main():
+
+    db_location = Path(config["VECTOR_DB_PATH"])
+    embedding_model = config["EMBEDDING_MODEL"]
+    collection_name = config["COLLECTION_NAME"]
+    csv_path = Path(config["DATA_CSV_PATH"])
+    num_docs_to_retrieve = config["NUM_DOCS_TO_RETRIEVE"]
+
+    create_vector_db = CreateVectorDB(db_location, embedding_model, collection_name)
+    create_vector_db.run(csv_path, num_docs_to_retrieve)
+
+
+if __name__ == "__main__":
+    main()
