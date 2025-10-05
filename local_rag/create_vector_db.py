@@ -6,6 +6,11 @@
 
 NOTE: currently this code only allows you to create a DB from scratch,
 not to add to an existing DB. The db_location must not already exist.
+
+I WANT to be able to:
+- load the retriever for an existing collection
+- add to an existing collection
+- create & add to a new collection
 """
 
 import os
@@ -25,25 +30,32 @@ from langchain_core.vectorstores import VectorStoreRetriever
 config = dotenv_values("/Users/ashapatel/Documents/projects/local-rag/.env")
 
 
-class CreateVectorDB:
+class VectorDBWriter:
+
+    """
+    TO DO: enable writing to an existing collection
+    """
 
     def __init__(
         self,
         db_location: Path,
         embedding_model: str,
-        collection_name: str
+        collection_name: str,
+        csv_path: Path,
+        create_new_db: bool
     ):
         self.db_location = db_location
         self.embeddings = OllamaEmbeddings(model=embedding_model)
         self.collection_name = collection_name
+        self.create_new_db = create_new_db
+        self.csv_path = csv_path
 
-    @staticmethod
-    def load_data_as_documents(csv_path: Path) -> tuple[list, list]:
+    def load_data(self) -> tuple[list, list]:
         """
         Load csv data into a list of documents and ids.
         This format is required by the vector data base.
         """
-        data_df = pd.read_csv(csv_path)
+        data_df = pd.read_csv(self.csv_path)
         documents = []
         ids = []
         for i, row in data_df.iterrows():
@@ -56,36 +68,57 @@ class CreateVectorDB:
             documents.append(document)
 
         return documents, ids
-
+    
     def add_documents_to_vector_store(self, documents: list, ids: list) -> Chroma:
         """
         Initialise the vector store and add the embedded data.
         """
+
         vector_store = Chroma(
             collection_name = self.collection_name,
             persist_directory = self.db_location,
             embedding_function = self.embeddings
         )
         vector_store.add_documents(documents=documents, ids=ids)
-        return vector_store
 
-    @staticmethod
-    def get_retriever(vector_store: Chroma, num_docs_to_retrieve: int) -> VectorStoreRetriever:
+    def run(self):
+        if self.create_new_db:               
+            print("Adding data to vector DB...")
+            documents, ids = self.load_data()
+            vector_store = self.add_documents_to_vector_store(documents, ids)
+            print("Complete")
+        # else:
+            ## figure out how to write to an existing collection
+
+
+class VectorDBReader:
+
+    def get_retriever(embedding_model: str, db_location: str, num_docs_to_retrieve: int, collection_name: str) -> VectorStoreRetriever:
         """
         Make vector store retrievable by LLM.
         """
-        retriever = vector_store.as_retriever(
-            search_kwargs = {"k": num_docs_to_retrieve} 
-        )
+        embeddings = OllamaEmbeddings(model=embedding_model)
+        vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
+        retriever = vectordb.as_retriever(
+                search_kwargs = {"k": int(num_docs_to_retrieve)} 
+            )
         return retriever
 
-    def run(self, csv_path: str, num_docs_to_retrieve: int):
-        
-        print("Adding data to vector DB...")
-        documents, ids = self.load_data_as_documents(csv_path)
-        vector_store = self.add_documents_to_vector_store(documents, ids)
-        retriever = self.get_retriever(vector_store, num_docs_to_retrieve)
-        print("Complete")
+    def list_all_collections(embedding_model: str, db_location: str):
+            embeddings = OllamaEmbeddings(model=embedding_model)
+            vectordb = Chroma(
+                persist_directory=db_location, 
+                embedding_function=embeddings
+            )
+
+            client = vectordb._client
+            collections = client.list_collections()
+
+            print(f"Found {len(collections)} collection(s):")
+            for collection in collections:
+                print(f"  - Name: '{collection.name}'")
+                print(f"    Documents: {collection.count()}")
+                print()
 
 
 class ValidateVectorDBVars(BaseModel):
@@ -120,7 +153,7 @@ def main():
     embedding_model = config["EMBEDDING_MODEL"]
     collection_name = config["COLLECTION_NAME"]
     csv_path = Path(config["DATA_CSV_PATH"])
-    num_docs_to_retrieve = config["NUM_DOCS_TO_RETRIEVE"]
+    num_docs_to_retrieve = int(config["NUM_DOCS_TO_RETRIEVE"])
 
     ValidateVectorDBVars(
         db_location=db_location,
@@ -130,8 +163,10 @@ def main():
         num_docs_to_retrieve=num_docs_to_retrieve
     )
 
-    create_vector_db = CreateVectorDB(db_location, embedding_model, collection_name)
-    create_vector_db.run(csv_path, num_docs_to_retrieve)
+    create_new_db = True
+
+    create_vector_db = VectorDBWriter(db_location, embedding_model, collection_name, csv_path, create_new_db)
+    create_vector_db.run()
 
 
 if __name__ == "__main__":

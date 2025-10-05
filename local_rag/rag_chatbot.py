@@ -6,7 +6,7 @@ Main file to run in terminal to enable user to send questions to the RAG chatbot
 from pathlib import Path
 from dotenv import dotenv_values
 from langchain_chroma import Chroma
-from create_vector_db import CreateVectorDB
+from create_vector_db import VectorDBReader
 from langchain_ollama.llms import OllamaLLM
 from langchain_ollama import OllamaEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
@@ -22,6 +22,7 @@ class ValidateArgs(BaseModel):
     db_location: Path
     embedding_model: str
     num_docs_to_retrieve: int
+    collection_name: str
     chat_model: str
 
     @field_validator("db_location")
@@ -38,6 +39,7 @@ def load_args():
     db_location = Path(config["VECTOR_DB_PATH"])
     embedding_model = config["EMBEDDING_MODEL"]
     num_docs_to_retrieve = int(config["NUM_DOCS_TO_RETRIEVE"])
+    collection_name = config["COLLECTION_NAME"]
     chat_model = config["CHAT_MODEL"]
     prompt = config["BASIC_PROMPT"]
 
@@ -45,15 +47,16 @@ def load_args():
         db_location=db_location,
         embedding_model=embedding_model,
         num_docs_to_retrieve=num_docs_to_retrieve,
+        collection_name=collection_name,
         chat_model=chat_model
     )
 
-    return db_location, embedding_model, num_docs_to_retrieve, chat_model, prompt
+    return db_location, embedding_model, num_docs_to_retrieve, collection_name, chat_model, prompt
 
 
 def run():
 
-    db_location, embedding_model, num_docs_to_retrieve, chat_model, prompt_template = load_args()
+    db_location, embedding_model, num_docs_to_retrieve, collection_name, chat_model, prompt_template = load_args()
 
     model = OllamaLLM(model = chat_model)
 
@@ -67,13 +70,11 @@ def run():
 
         embeddings = OllamaEmbeddings(model=embedding_model)
         vectordb = Chroma(persist_directory=db_location, embedding_function=embeddings)
-        
-        retriever = vectordb.as_retriever(
-                search_kwargs = {"k": int(num_docs_to_retrieve)} 
-            )
+    
+        # retriever embeds question and searches for top k similar entries in the db
+        retriever = VectorDBReader.get_retriever(embedding_model, db_location, num_docs_to_retrieve, collection_name)
 
         reviews = retriever.invoke(question)
-        # retriever embeds question and searches for top k similar entries in the db
 
         result = chain.invoke(
             {
@@ -81,6 +82,7 @@ def run():
                 "question": question
             }
         )
+
         print(result)
 
 
