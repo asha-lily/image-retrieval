@@ -3,14 +3,6 @@
 - Vector database hosted locally using ChromaDB
 - When user asks a question, we look up relevant docs in the database
 - Pass retrieved docs + original question to LLM
-
-NOTE: currently this code only allows you to create a DB from scratch,
-not to add to an existing DB. The db_location must not already exist.
-
-I WANT to be able to:
-- load the retriever for an existing collection
-- add to an existing collection
-- create & add to a new collection
 """
 
 import os
@@ -31,10 +23,6 @@ config = dotenv_values("/Users/ashapatel/Documents/projects/local-rag/.env")
 
 
 class VectorDBWriter:
-
-    """
-    TO DO: enable writing to an existing collection
-    """
 
     def __init__(
         self,
@@ -137,16 +125,15 @@ class VectorDBReader:
             print(f"    Documents: {collection.count()}")
             print()
 
-    def get_num_docs_in_collection(embedding_model: str, db_location: str, collection_name):
+    def get_num_docs_in_collection(embedding_model: str, db_location: str, collection_name) -> int:
         embeddings = OllamaEmbeddings(model=embedding_model)
         vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
         return vectordb._collection.count()
 
-    def get_collection_contents(embedding_model: str, db_location: str, collection_name):
+    def get_collection_contents(embedding_model: str, db_location: str, collection_name) -> dict:
         embeddings = OllamaEmbeddings(model=embedding_model)
         vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
         return vectordb._collection.get(include=["documents", "metadatas"])
-
 
 
 class ValidateVectorDBVars(BaseModel):
