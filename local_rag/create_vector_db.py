@@ -8,7 +8,7 @@
 import os
 import pandas as pd
 from pathlib import Path
-from dotenv import dotenv_values, load_dotenv
+from config import Config
 
 from pydantic_core import PydanticCustomError
 from pydantic import BaseModel, field_validator
@@ -19,7 +19,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 
 
-config = dotenv_values("/Users/ashapatel/Documents/projects/local-rag/.env")
+config = Config()
 
 
 class VectorDBWriter:
@@ -155,11 +155,11 @@ class ValidateVectorDBVars(BaseModel):
 
 def main():
 
-    db_location = Path(config["VECTOR_DB_PATH"])
-    embedding_model = config["EMBEDDING_MODEL"]
-    collection_name = config["COLLECTION_NAME"]
-    csv_path = Path(config["DATA_CSV_PATH"])
-    num_docs_to_retrieve = int(config["NUM_DOCS_TO_RETRIEVE"])
+    db_location = Path(config.vector_db_path)
+    embedding_model = config.embedding_model
+    collection_name = config.collection_name
+    csv_path = Path(config.data_csv_path)
+    num_docs_to_retrieve = config.num_docs_to_retrieve
 
     ValidateVectorDBVars(
         db_location=db_location,
