@@ -42,12 +42,11 @@ class VectorDBWriter:
         embedding_model: str,
         collection_name: str,
         csv_path: Path,
-        create_new_db: bool
     ):
         self.db_location = db_location
+        self.embedding_model = embedding_model
         self.embeddings = OllamaEmbeddings(model=embedding_model)
         self.collection_name = collection_name
-        self.create_new_db = create_new_db
         self.csv_path = csv_path
 
     def load_data(self) -> tuple[list, list]:
@@ -73,23 +72,41 @@ class VectorDBWriter:
         """
         Initialise the vector store and add the embedded data.
         """
-
         vector_store = Chroma(
             collection_name = self.collection_name,
             persist_directory = self.db_location,
             embedding_function = self.embeddings
         )
+        print(f"Count before: {vector_store._collection.count()}")
         vector_store.add_documents(documents=documents, ids=ids)
+        print(f"Count after: {vector_store._collection.count()}")
+
+    def add_to_existing_collection(self):
+        """
+        We are adding data to an existing DB.
+        We need to find out how many documents are already in the DB: call this n.
+        When adding the new data, the IDs should start from n + 1 
+        so that we don't overwrite existing data.
+        """
+        num_docs = VectorDBReader.get_num_docs_in_collection(self.embedding_model, self.db_location, self.collection_name)
+        documents, ids = self.load_data()
+        new_ids = [str(int(id) + num_docs) for id in ids]
+        print(f"Adding data to {self.collection_name} collection")
+        self.add_documents_to_vector_store(documents, new_ids)
+        print("Complete")
+
+    def create_new_collection(self):
+        print(f"Adding data to new collection: {self.collection_name}")
+        documents, ids = self.load_data()
+        vector_store = self.add_documents_to_vector_store(documents, ids)
+        print("Complete")
 
     def run(self):
-        if self.create_new_db:               
-            print("Adding data to vector DB...")
-            documents, ids = self.load_data()
-            vector_store = self.add_documents_to_vector_store(documents, ids)
-            print("Complete")
-        # else:
-            ## figure out how to write to an existing collection
-
+        if self.db_location.exists():
+            self.add_to_existing_collection()
+        else:
+            self.create_new_collection()
+            
 
 class VectorDBReader:
 
@@ -105,20 +122,31 @@ class VectorDBReader:
         return retriever
 
     def list_all_collections(embedding_model: str, db_location: str):
-            embeddings = OllamaEmbeddings(model=embedding_model)
-            vectordb = Chroma(
-                persist_directory=db_location, 
-                embedding_function=embeddings
-            )
+        embeddings = OllamaEmbeddings(model=embedding_model)
+        vectordb = Chroma(
+            persist_directory=db_location, 
+            embedding_function=embeddings
+        )
 
-            client = vectordb._client
-            collections = client.list_collections()
+        client = vectordb._client
+        collections = client.list_collections()
 
-            print(f"Found {len(collections)} collection(s):")
-            for collection in collections:
-                print(f"  - Name: '{collection.name}'")
-                print(f"    Documents: {collection.count()}")
-                print()
+        print(f"Found {len(collections)} collection(s):")
+        for collection in collections:
+            print(f"  - Name: '{collection.name}'")
+            print(f"    Documents: {collection.count()}")
+            print()
+
+    def get_num_docs_in_collection(embedding_model: str, db_location: str, collection_name):
+        embeddings = OllamaEmbeddings(model=embedding_model)
+        vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
+        return vectordb._collection.count()
+
+    def get_collection_contents(embedding_model: str, db_location: str, collection_name):
+        embeddings = OllamaEmbeddings(model=embedding_model)
+        vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
+        return vectordb._collection.get(include=["documents", "metadatas"])
+
 
 
 class ValidateVectorDBVars(BaseModel):
@@ -127,15 +155,6 @@ class ValidateVectorDBVars(BaseModel):
     collection_name: str
     csv_path: Path
     num_docs_to_retrieve: int
-
-    @field_validator("db_location")
-    def validate_db_location(cls, value: Path):
-        if value.exists():
-            raise PydanticCustomError(
-                "path_already_exists_error",
-                "Vector DB path already exists.",
-                {"path": value}
-            )
 
     @field_validator("csv_path")
     def validate_csv_path(cls, value: Path):
@@ -163,10 +182,15 @@ def main():
         num_docs_to_retrieve=num_docs_to_retrieve
     )
 
-    create_new_db = True
+    csv_path = Path("/Users/ashapatel/Documents/projects/local-rag/data/new_data.csv")
 
-    create_vector_db = VectorDBWriter(db_location, embedding_model, collection_name, csv_path, create_new_db)
+    create_vector_db = VectorDBWriter(db_location, embedding_model, collection_name, csv_path)
     create_vector_db.run()
+
+    VectorDBReader.list_all_collections(embedding_model, db_location)
+    # result = VectorDBReader.get_collection_contents(embedding_model, db_location, collection_name)
+    # print(result)
+
 
 
 if __name__ == "__main__":
