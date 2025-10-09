@@ -1,3 +1,4 @@
+config
 langchain
 langchain-ollama
 langchain-chroma
