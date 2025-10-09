@@ -26,7 +26,7 @@ from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
 config = Config()
 
 
-class VectorDBWriter:
+class VectorDBDocumentWriter:
 
     def __init__(
         self,
@@ -90,10 +90,6 @@ class VectorDBWriter:
         vector_store = self.add_documents_to_vector_store(documents, ids)
         print("Complete")
 
-    def delete_collection(self, collection_name: str):
-        client = chromadb.PersistentClient(path=self.db_location)
-        client.delete_collection(name=collection_name)
-
     def run(self, collection_name: str):
         if self.db_location.exists():
             self.add_to_existing_collection()
@@ -101,20 +97,25 @@ class VectorDBWriter:
             self.create_new_collection()
             
 
-class VectorDBReader:
+class VectorDBCollectionUtils:
+    """
+    Utils functions that operate on the specified collection name.
+    """
 
     def __init__(
         self,
         db_location: Path,
         embedding_model: str,
-        collection_name: str,
         csv_path: Path,
     ):
         self.db_location = db_location
         self.embedding_model = embedding_model
         self.embeddings = OllamaEmbeddings(model=embedding_model)
-        self.collection_name = collection_name
-        self.vectordb_collection = Chroma(collection_name=self.collection_name, persist_directory=self.db_location, embedding_function=self.embeddings)
+        self.vectordb_collection = Chroma(
+            collection_name=self.collection_name, 
+            persist_directory=self.db_location, 
+            embedding_function=self.embeddings
+        )
 
     def get_retriever(self, num_docs_to_retrieve: int) -> VectorStoreRetriever:
         """
@@ -124,6 +125,25 @@ class VectorDBReader:
                 search_kwargs = {"k": int(num_docs_to_retrieve)} 
             )
         return retriever
+
+    def get_num_docs_in_collection(self) -> int:
+        return self.vectordb_collection._collection.count()
+
+    def get_collection_contents(self) -> dict:
+        return self.vectordb_collection._collection.get(include=["documents", "metadatas"])
+
+
+class VectorDBUtils:
+
+    def __init__(
+        self,
+        db_location: Path,
+        embedding_model: str,
+        csv_path: Path,
+    ):
+        self.db_location = db_location
+        self.embedding_model = embedding_model
+        self.embeddings = OllamaEmbeddings(model=embedding_model)
 
     def list_all_collections(self):
         vectordb_all_collections = Chroma(
@@ -140,11 +160,9 @@ class VectorDBReader:
             print(f"    Documents: {collection.count()}")
             print()
 
-    def get_num_docs_in_collection(self) -> int:
-        return self.vectordb_collection._collection.count()
-
-    def get_collection_contents(self) -> dict:
-        return self.vectordb_collection._collection.get(include=["documents", "metadatas"])
+    def delete_collection(self, collection_name: str):
+        client = chromadb.PersistentClient(path=self.db_location)
+        client.delete_collection(name=collection_name)
 
 
 class ValidateVectorDBVars(BaseModel):
@@ -180,10 +198,8 @@ def main():
         num_docs_to_retrieve=num_docs_to_retrieve
     )
 
-    vector_db_reader = VectorDBReader(db_location, embedding_model, collection_name, csv_path)
+    vector_db_reader = VectorDBUtils(db_location, embedding_model, csv_path)
     vector_db_reader.list_all_collections()
-
-
 
 
 if __name__ == "__main__":
