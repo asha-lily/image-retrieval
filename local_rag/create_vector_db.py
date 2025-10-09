@@ -6,6 +6,7 @@
 """
 
 import os
+import chromadb
 import pandas as pd
 from pathlib import Path
 from config import Config
@@ -18,6 +19,9 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 
+from chromadb.utils.data_loaders import ImageLoader
+from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
+
 
 config = Config()
 
@@ -28,16 +32,14 @@ class VectorDBWriter:
         self,
         db_location: Path,
         embedding_model: str,
-        collection_name: str,
         csv_path: Path,
     ):
         self.db_location = db_location
         self.embedding_model = embedding_model
         self.embeddings = OllamaEmbeddings(model=embedding_model)
-        self.collection_name = collection_name
         self.csv_path = csv_path
 
-    def load_data(self) -> tuple[list, list]:
+    def load_csv_data(self) -> tuple[list, list]:
         """
         Load csv data into a list of documents and ids.
         This format is required by the vector data base.
@@ -55,12 +57,12 @@ class VectorDBWriter:
             documents.append(document)
         return documents, ids
     
-    def add_documents_to_vector_store(self, documents: list, ids: list) -> Chroma:
+    def add_documents_to_vector_store(self, documents: list, ids: list, collection_name: str) -> Chroma:
         """
         Initialise the vector store and add the embedded data.
         """
         vector_store = Chroma(
-            collection_name = self.collection_name,
+            collection_name = collection_name,
             persist_directory = self.db_location,
             embedding_function = self.embeddings
         )
@@ -68,27 +70,31 @@ class VectorDBWriter:
         vector_store.add_documents(documents=documents, ids=ids)
         print(f"Count after: {vector_store._collection.count()}")
 
-    def add_to_existing_collection(self):
+    def add_to_existing_collection(self, collection_name: str):
         """
         We are adding data to an existing DB.
         We need to find out how many documents are already in the DB: call this n.
         When adding the new data, the IDs should start from n + 1 
         so that we don't overwrite existing data.
         """
-        num_docs = VectorDBReader.get_num_docs_in_collection(self.embedding_model, self.db_location, self.collection_name)
+        num_docs = VectorDBReader.get_num_docs_in_collection(self.embedding_model, self.db_location, collection_name)
         documents, ids = self.load_data()
         new_ids = [str(int(id) + num_docs) for id in ids]
         print(f"Adding data to {self.collection_name} collection")
         self.add_documents_to_vector_store(documents, new_ids)
         print("Complete")
 
-    def create_new_collection(self):
-        print(f"Adding data to new collection: {self.collection_name}")
+    def create_new_collection(self, collection_name: str):
+        print(f"Adding data to new collection: {collection_name}")
         documents, ids = self.load_data()
         vector_store = self.add_documents_to_vector_store(documents, ids)
         print("Complete")
 
-    def run(self):
+    def delete_collection(self, collection_name: str):
+        client = chromadb.PersistentClient(path=self.db_location)
+        client.delete_collection(name=collection_name)
+
+    def run(self, collection_name: str):
         if self.db_location.exists():
             self.add_to_existing_collection()
         else:
@@ -173,6 +179,11 @@ def main():
         csv_path=csv_path,
         num_docs_to_retrieve=num_docs_to_retrieve
     )
+
+    vector_db_reader = VectorDBReader(db_location, embedding_model, collection_name, csv_path)
+    vector_db_reader.list_all_collections()
+
+
 
 
 if __name__ == "__main__":
