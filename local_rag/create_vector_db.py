@@ -11,16 +11,16 @@ import pandas as pd
 from pathlib import Path
 from config import Config
 
-from pydantic_core import PydanticCustomError
-from pydantic import BaseModel, field_validator
+from data_models import ValidateVectorDBVars
 
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langchain_core.documents import Document
-from langchain_core.vectorstores import VectorStoreRetriever
 
 from chromadb.utils.data_loaders import ImageLoader
 from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
+
+from utils import VectorDBCollectionUtils
 
 
 config = Config()
@@ -77,8 +77,8 @@ class VectorDBDocumentWriter:
         When adding the new data, the IDs should start from n + 1 
         so that we don't overwrite existing data.
         """
-        num_docs = VectorDBReader.get_num_docs_in_collection(self.embedding_model, self.db_location, collection_name)
-        documents, ids = self.load_data()
+        num_docs = VectorDBCollectionUtils(self.db_location, self.embedding_model, self.csv_path).get_num_docs_in_collection()
+        documents, ids = self.load_csv_data()
         new_ids = [str(int(id) + num_docs) for id in ids]
         print(f"Adding data to {self.collection_name} collection")
         self.add_documents_to_vector_store(documents, new_ids)
@@ -95,91 +95,6 @@ class VectorDBDocumentWriter:
             self.add_to_existing_collection()
         else:
             self.create_new_collection()
-            
-
-class VectorDBCollectionUtils:
-    """
-    Utils functions that operate on the specified collection name.
-    """
-
-    def __init__(
-        self,
-        db_location: Path,
-        embedding_model: str,
-        csv_path: Path,
-    ):
-        self.db_location = db_location
-        self.embedding_model = embedding_model
-        self.embeddings = OllamaEmbeddings(model=embedding_model)
-        self.vectordb_collection = Chroma(
-            collection_name=self.collection_name, 
-            persist_directory=self.db_location, 
-            embedding_function=self.embeddings
-        )
-
-    def get_retriever(self, num_docs_to_retrieve: int) -> VectorStoreRetriever:
-        """
-        Make vector store retrievable by LLM.
-        """
-        retriever = self.vectordb_collection.as_retriever(
-                search_kwargs = {"k": int(num_docs_to_retrieve)} 
-            )
-        return retriever
-
-    def get_num_docs_in_collection(self) -> int:
-        return self.vectordb_collection._collection.count()
-
-    def get_collection_contents(self) -> dict:
-        return self.vectordb_collection._collection.get(include=["documents", "metadatas"])
-
-
-class VectorDBUtils:
-
-    def __init__(
-        self,
-        db_location: Path,
-        embedding_model: str,
-        csv_path: Path,
-    ):
-        self.db_location = db_location
-        self.embedding_model = embedding_model
-        self.embeddings = OllamaEmbeddings(model=embedding_model)
-
-    def list_all_collections(self):
-        vectordb_all_collections = Chroma(
-            persist_directory=self.db_location, 
-            embedding_function=self.embeddings
-        )
-
-        client = vectordb_all_collections._client
-        collections = client.list_collections()
-
-        print(f"Found {len(collections)} collection(s):")
-        for collection in collections:
-            print(f"  - Name: '{collection.name}'")
-            print(f"    Documents: {collection.count()}")
-            print()
-
-    def delete_collection(self, collection_name: str):
-        client = chromadb.PersistentClient(path=self.db_location)
-        client.delete_collection(name=collection_name)
-
-
-class ValidateVectorDBVars(BaseModel):
-    db_location: Path
-    embedding_model: str
-    collection_name: str
-    csv_path: Path
-    num_docs_to_retrieve: int
-
-    @field_validator("csv_path")
-    def validate_csv_path(cls, value: Path):
-        if not value.exists():
-            raise PydanticCustomError(
-                "path_doesn't_exist_error",
-                "CSV path doesn't exist.",
-                {"path": value}
-            )
 
 
 def main():
@@ -197,9 +112,6 @@ def main():
         csv_path=csv_path,
         num_docs_to_retrieve=num_docs_to_retrieve
     )
-
-    vector_db_reader = VectorDBUtils(db_location, embedding_model, csv_path)
-    vector_db_reader.list_all_collections()
 
 
 if __name__ == "__main__":
