@@ -53,7 +53,6 @@ class VectorDBWriter:
             )
             ids.append(str(i))
             documents.append(document)
-
         return documents, ids
     
     def add_documents_to_vector_store(self, documents: list, ids: list) -> Chroma:
@@ -98,25 +97,35 @@ class VectorDBWriter:
 
 class VectorDBReader:
 
-    def get_retriever(embedding_model: str, db_location: str, num_docs_to_retrieve: int, collection_name: str) -> VectorStoreRetriever:
+    def __init__(
+        self,
+        db_location: Path,
+        embedding_model: str,
+        collection_name: str,
+        csv_path: Path,
+    ):
+        self.db_location = db_location
+        self.embedding_model = embedding_model
+        self.embeddings = OllamaEmbeddings(model=embedding_model)
+        self.collection_name = collection_name
+        self.vectordb_collection = Chroma(collection_name=self.collection_name, persist_directory=self.db_location, embedding_function=self.embeddings)
+
+    def get_retriever(self, num_docs_to_retrieve: int) -> VectorStoreRetriever:
         """
         Make vector store retrievable by LLM.
         """
-        embeddings = OllamaEmbeddings(model=embedding_model)
-        vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
-        retriever = vectordb.as_retriever(
+        retriever = self.vectordb_collection.as_retriever(
                 search_kwargs = {"k": int(num_docs_to_retrieve)} 
             )
         return retriever
 
-    def list_all_collections(embedding_model: str, db_location: str):
-        embeddings = OllamaEmbeddings(model=embedding_model)
-        vectordb = Chroma(
-            persist_directory=db_location, 
-            embedding_function=embeddings
+    def list_all_collections(self):
+        vectordb_all_collections = Chroma(
+            persist_directory=self.db_location, 
+            embedding_function=self.embeddings
         )
 
-        client = vectordb._client
+        client = vectordb_all_collections._client
         collections = client.list_collections()
 
         print(f"Found {len(collections)} collection(s):")
@@ -125,15 +134,11 @@ class VectorDBReader:
             print(f"    Documents: {collection.count()}")
             print()
 
-    def get_num_docs_in_collection(embedding_model: str, db_location: str, collection_name) -> int:
-        embeddings = OllamaEmbeddings(model=embedding_model)
-        vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
-        return vectordb._collection.count()
+    def get_num_docs_in_collection(self) -> int:
+        return self.vectordb_collection._collection.count()
 
-    def get_collection_contents(embedding_model: str, db_location: str, collection_name) -> dict:
-        embeddings = OllamaEmbeddings(model=embedding_model)
-        vectordb = Chroma(collection_name=collection_name, persist_directory=db_location, embedding_function=embeddings)
-        return vectordb._collection.get(include=["documents", "metadatas"])
+    def get_collection_contents(self) -> dict:
+        return self.vectordb_collection._collection.get(include=["documents", "metadatas"])
 
 
 class ValidateVectorDBVars(BaseModel):
@@ -168,16 +173,6 @@ def main():
         csv_path=csv_path,
         num_docs_to_retrieve=num_docs_to_retrieve
     )
-
-    csv_path = Path("/Users/ashapatel/Documents/projects/local-rag/data/new_data.csv")
-
-    create_vector_db = VectorDBWriter(db_location, embedding_model, collection_name, csv_path)
-    create_vector_db.run()
-
-    VectorDBReader.list_all_collections(embedding_model, db_location)
-    # result = VectorDBReader.get_collection_contents(embedding_model, db_location, collection_name)
-    # print(result)
-
 
 
 if __name__ == "__main__":
