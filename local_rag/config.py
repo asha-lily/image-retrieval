@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    data_csv_path: str = "/Users/ashapatel/Documents/projects/local-rag/data/pizza_reviews.csv"
+    data_csv_path: str = "/Users/ashapatel/Documents/projects/local-rag/data/text/pizza_reviews.csv"
 
     vector_db_path: str = "./chroma_langchain_db"
     collection_name: str = "pizza_reviews"
