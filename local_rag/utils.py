@@ -59,15 +59,10 @@ class VectorDBUtils:
         self.db_location = db_location
         self.embedding_model = embedding_model
         self.embeddings = OllamaEmbeddings(model=embedding_model)
+        self.client = chromadb.PersistentClient(path=db_location)
 
     def list_all_collections(self):
-        vectordb_all_collections = Chroma(
-            persist_directory=self.db_location, 
-            embedding_function=self.embeddings
-        )
-
-        client = vectordb_all_collections._client
-        collections = client.list_collections()
+        collections = self.client.list_collections()
 
         print(f"Found {len(collections)} collection(s):")
         for collection in collections:
