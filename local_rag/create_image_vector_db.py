@@ -22,8 +22,12 @@ class VectorDBImageWriter:
         self.data_loader = ImageLoader()
         self.embedding_function = OpenCLIPEmbeddingFunction()
 
-    def load_data(self, data_csv_path: Path) -> pd.DataFrame:
-        return pd.read_csv(data_csv_path)
+    def load_data(self, data_csv_path: Path) -> tuple[list, list, list]:
+        data_df = pd.read_csv(data_csv_path)
+        ids = [str(id) for id in list(data_df["id"])]
+        image_paths = [str(image_path) for image_path in list(data_df["image path"])]
+        descriptions = [str(description) for description in list(data_df["image description"])]
+        return ids, image_paths, descriptions
 
     def create_new_collection(self, collection_name: str):
         collection = self.client.create_collection(
@@ -32,12 +36,20 @@ class VectorDBImageWriter:
             data_loader=self.data_loader
         )
 
-    def add_to_collection(self, data_csv_path: Path):
-        data_df = self.load_data(data.csv_path)
+    def add_to_collection(self, data_csv_path: Path, collection_name: str):
+        ids, image_paths, descriptions = self.load_data(data_csv_path)
+        text_metadata = [{"text": description} for description in descriptions]
+
+        collection = self.client.get_or_create_collection(
+            name=collection_name,
+            embedding_function=self.embedding_function,
+            data_loader=self.data_loader
+        )
+
         collection.add(
-            ids=data_df[ids],
-            uris=data_df["image path"],
-            documents=data_df["image description"]
+            ids=ids,
+            uris=image_paths,
+            metadatas=text_metadata
         )
 
     def list_collections(self):
@@ -51,8 +63,13 @@ class VectorDBImageWriter:
 def main():
 
     db_location = Path(config.vector_db_path)
+    data_csv_path = config.image_data_csv_path
+
+    collection_name = "image_text_collection"
 
     image_writer = VectorDBImageWriter(db_location)
+    image_writer.add_to_collection(data_csv_path, collection_name)
+
     image_writer.list_collections()
 
 
