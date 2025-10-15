@@ -22,7 +22,7 @@ class VectorDBImageWriter:
         self.data_loader = ImageLoader()
         self.embedding_function = OpenCLIPEmbeddingFunction()
 
-    def load_data(self, data_csv_path: Path) -> tuple[list, list, list]:
+    def load_csv_data(self, data_csv_path: Path) -> tuple[list, list, list]:
         data_df = pd.read_csv(data_csv_path)
         ids = [str(id) for id in list(data_df["id"])]
         image_paths = [str(image_path) for image_path in list(data_df["image path"])]
@@ -37,7 +37,7 @@ class VectorDBImageWriter:
         )
 
     def add_to_collection(self, data_csv_path: Path, collection_name: str):
-        ids, image_paths, descriptions = self.load_data(data_csv_path)
+        ids, image_paths, descriptions = self.load_csv_data(data_csv_path)
         text_metadata = [{"text": description} for description in descriptions]
 
         collection = self.client.get_or_create_collection(
@@ -59,6 +59,20 @@ class VectorDBImageWriter:
             print(f"  - {col.name}")
             print(f"    - {col.count()}")
 
+    def view_collection_contents(self, collection_name: str):
+        collection = self.client.get_or_create_collection(
+            name=collection_name,
+            embedding_function=self.embedding_function,
+            data_loader=self.data_loader
+        )
+
+        collection_contents = collection.get(include=['uris', 'metadatas'])
+        print("\n--- All items ---")
+        print(f"Number of items: {len(collection_contents['ids'])}")
+        print("IDs:", collection_contents['ids'])
+        print("URIs:", collection_contents['uris'])
+        print("Metadatas:", collection_contents['metadatas'])
+
 
 def main():
 
@@ -68,9 +82,10 @@ def main():
     collection_name = "image_text_collection"
 
     image_writer = VectorDBImageWriter(db_location)
-    image_writer.add_to_collection(data_csv_path, collection_name)
+    # image_writer.add_to_collection(data_csv_path, collection_name)
+    image_writer.view_collection_contents(collection_name)
 
-    image_writer.list_collections()
+    # image_writer.list_collections()
 
 
 
