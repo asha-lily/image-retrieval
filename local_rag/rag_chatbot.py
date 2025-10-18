@@ -4,7 +4,7 @@ Main file to run in terminal to enable user to send questions to the RAG chatbot
 """
 
 from pathlib import Path
-from dotenv import dotenv_values
+from config import Config
 from langchain_chroma import Chroma
 from create_vector_db import VectorDBReader
 from langchain_ollama.llms import OllamaLLM
@@ -15,7 +15,7 @@ from pydantic_core import PydanticCustomError
 from pydantic import BaseModel, field_validator
 
 
-config = dotenv_values("/Users/ashapatel/Documents/projects/local-rag/.env")
+config = Config()
 
 
 class ValidateArgs(BaseModel):
