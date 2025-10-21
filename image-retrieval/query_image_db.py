@@ -1,3 +1,7 @@
+"""
+Run this file to query the image DB from the command line.
+"""
+
 import pandas as pd
 from pathlib import Path
 from config import Config
@@ -6,38 +10,22 @@ import chromadb
 from chromadb.utils.data_loaders import ImageLoader
 from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
 
-from pydantic_core import PydanticCustomError
-from pydantic import BaseModel, field_validator
+from schemas import ValidateQueryArgs
 
 
 config = Config() 
 embedding_function = OpenCLIPEmbeddingFunction()
 
 
-class ValidateArgs(BaseModel):
-    db_location: Path
-    num_results_to_retrieve: int
-    collection_name: str
-
-    @field_validator("db_location")
-    def validate_db_exists(cls, value: Path):
-        if not value.exists():
-            raise PydanticCustomError(
-                "db_doesn't_exist_error",
-                "DB path doesn't exist.",
-                {"path": value}
-            )
-
-
 def load_args():
     db_location = Path(config.vector_db_path)
-    num_results_to_retrieve = config.num_results_to_retrieve
     collection_name = config.image_collection_name
+    num_results_to_retrieve = config.num_results_to_retrieve
 
-    ValidateArgs(
+    ValidateQueryArgs(
         db_location=db_location,
-        num_results_to_retrieve=num_results_to_retrieve,
         collection_name=collection_name,
+        num_results_to_retrieve=num_results_to_retrieve,
     )
 
     return (

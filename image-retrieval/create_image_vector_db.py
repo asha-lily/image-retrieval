@@ -10,7 +10,10 @@ from config import Config
 
 import chromadb
 from chromadb.utils.data_loaders import ImageLoader
+from chromadb.api.models.Collection import Collection
 from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
+
+from schemas import ValidateImageDBArgs
 
 config = Config()
 
@@ -40,16 +43,19 @@ class VectorDBImageWriter:
             data_loader=self.data_loader
         )
 
-    def add_to_collection(self, data_csv_path: Path, collection_name: str):
-        ids, image_paths, descriptions = load_csv_data(data_csv_path)
-        text_metadata = [{"text": description} for description in descriptions]
-
+    def get_collection(self, collection_name: str) -> Collection:
         collection = self.client.get_or_create_collection(
             name=collection_name,
             embedding_function=self.embedding_function,
             data_loader=self.data_loader
         )
+        return collection
 
+    def add_to_collection(self, data_csv_path: Path, collection_name: str):
+        ids, image_paths, descriptions = load_csv_data(data_csv_path)
+        text_metadata = [{"text": description} for description in descriptions]
+
+        collection = self.get_collection(collection_name)
         collection.add(
             ids=ids,
             uris=image_paths,
@@ -64,12 +70,7 @@ class VectorDBImageWriter:
             print(f"    - {col.count()}")
 
     def view_collection_contents(self, collection_name: str):
-        collection = self.client.get_or_create_collection(
-            name=collection_name,
-            embedding_function=self.embedding_function,
-            data_loader=self.data_loader
-        )
-
+        collection = self.get_collection(collection_name)
         collection_contents = collection.get(include=['uris', 'metadatas'])
         print("\n--- All items ---")
         print(f"Number of items: {len(collection_contents['ids'])}")
@@ -82,10 +83,16 @@ def main():
 
     db_location = Path(config.vector_db_path)
     data_csv_path = config.image_data_csv_path
+    collection_name = config.image_collection_name
 
-    collection_name = "image_text_collection"
+    ValidateImageDBArgs(
+        data_csv_path=data_csv_path, 
+        db_location=db_location, 
+        collection_name=collection_name
+    )
 
     image_writer = VectorDBImageWriter(db_location)
+
     # image_writer.add_to_collection(data_csv_path, collection_name)
     image_writer.view_collection_contents(collection_name)
 
