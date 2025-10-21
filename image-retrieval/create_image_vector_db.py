@@ -1,5 +1,7 @@
 """
 https://docs.trychroma.com/docs/embeddings/multimodal
+
+Create / add to an image database (chromadb 'collection')
 """
 
 import pandas as pd
@@ -12,6 +14,15 @@ from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
 
 config = Config()
 
+
+def load_csv_data(data_csv_path: Path) -> tuple[list, list, list]:
+    data_df = pd.read_csv(data_csv_path)
+    ids = [str(id) for id in list(data_df["id"])]
+    image_paths = [str(image_path) for image_path in list(data_df["image path"])]
+    descriptions = [str(description) for description in list(data_df["image description"])]
+    return ids, image_paths, descriptions
+
+
 class VectorDBImageWriter:
 
     def __init__(
@@ -22,13 +33,6 @@ class VectorDBImageWriter:
         self.data_loader = ImageLoader()
         self.embedding_function = OpenCLIPEmbeddingFunction()
 
-    def load_csv_data(self, data_csv_path: Path) -> tuple[list, list, list]:
-        data_df = pd.read_csv(data_csv_path)
-        ids = [str(id) for id in list(data_df["id"])]
-        image_paths = [str(image_path) for image_path in list(data_df["image path"])]
-        descriptions = [str(description) for description in list(data_df["image description"])]
-        return ids, image_paths, descriptions
-
     def create_new_collection(self, collection_name: str):
         collection = self.client.create_collection(
             name=collection_name,
@@ -37,7 +41,7 @@ class VectorDBImageWriter:
         )
 
     def add_to_collection(self, data_csv_path: Path, collection_name: str):
-        ids, image_paths, descriptions = self.load_csv_data(data_csv_path)
+        ids, image_paths, descriptions = load_csv_data(data_csv_path)
         text_metadata = [{"text": description} for description in descriptions]
 
         collection = self.client.get_or_create_collection(
