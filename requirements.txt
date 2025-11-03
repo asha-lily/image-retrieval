@@ -1,6 +1,0 @@
-config
-langchain
-langchain-ollama
-langchain-chroma
-pandas
-open-clip-torch

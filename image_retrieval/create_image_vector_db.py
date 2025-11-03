@@ -4,6 +4,7 @@ https://docs.trychroma.com/docs/embeddings/multimodal
 Create / add to an image database (chromadb 'collection')
 """
 
+import argparse
 import pandas as pd
 from pathlib import Path
 from config import Config
@@ -79,11 +80,31 @@ class VectorDBImageWriter:
         print("Metadatas:", collection_contents['metadatas'])
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--run_mode",
+        type=str,
+        default="default",
+        help="Modes to choose from: 'list_collections', 'view_collection_contents', 'create_new_collection', 'add_images_to_collection'"
+    )
+    parser.add_argument(
+        "--collection_name",
+        type=str,
+        default="default",
+        help="The name of an existing collection that you want to view or add to, or the name of the collection you want to create."
+    )
+    return parser.parse_args()
+
+
 def main():
+
+    args = parse_args()
+    run_mode = args.run_mode
+    collection_name = args.collection_name
 
     db_location = Path(config.vector_db_path)
     data_csv_path = config.image_data_csv_path
-    collection_name = config.image_collection_name
 
     ValidateImageDBArgs(
         data_csv_path=data_csv_path, 
@@ -93,12 +114,18 @@ def main():
 
     image_writer = VectorDBImageWriter(db_location)
 
-    # image_writer.add_to_collection(data_csv_path, collection_name)
-    image_writer.view_collection_contents(collection_name)
-
-    # image_writer.list_collections()
-
-
+    match run_mode:
+        case "list_collections":
+            image_writer.list_collections()
+        case "view_collection_contents":
+            image_writer.view_collection_contents(collection_name)
+        case "create_new_collection":
+            image_writer.create_new_collection(collection_name)
+        case "add_images_to_collection":
+            image_writer.add_to_collection(data_csv_path, collection_name)
+        case _:
+            print("no run mode specified")
+    
 
 if __name__ == "__main__":
     main()
