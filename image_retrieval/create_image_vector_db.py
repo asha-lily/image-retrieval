@@ -4,6 +4,7 @@ https://docs.trychroma.com/docs/embeddings/multimodal
 Create / add to an image database (chromadb 'collection')
 """
 
+import argparse
 import pandas as pd
 from pathlib import Path
 from config import Config
@@ -79,7 +80,21 @@ class VectorDBImageWriter:
         print("Metadatas:", collection_contents['metadatas'])
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--run_mode",
+        type=str,
+        default="default",
+        help="Modes to choose from: 'list_collections', 'view_collection_contents' & 'add_images_to_collection'"
+    )
+    return parser.parse_args()
+
+
 def main():
+
+    args = parse_args()
+    run_mode = args.run_mode
 
     db_location = Path(config.vector_db_path)
     data_csv_path = config.image_data_csv_path
@@ -93,12 +108,16 @@ def main():
 
     image_writer = VectorDBImageWriter(db_location)
 
-    # image_writer.add_to_collection(data_csv_path, collection_name)
-    image_writer.view_collection_contents(collection_name)
-
-    # image_writer.list_collections()
-
-
+    match run_mode:
+        case "list_collections":
+            image_writer.list_collections()
+        case "view_collection_contents":
+            image_writer.view_collection_contents(collection_name)
+        case "add_images_to_collection":
+            image_writer.add_to_collection(data_csv_path, collection_name)
+        case _:
+            print("no run mode specified")
+    
 
 if __name__ == "__main__":
     main()
