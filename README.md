@@ -80,12 +80,12 @@ python create_image_vector_db.py --run_mode add_images_to_collection --collectio
 
 Once you have a collection of images, you can query the collection for an image similar to your input text.
 
-Running `query_image_db.py` prompts the user to `describe the image you are looking for` in the command line.
+Running `query_image_db.py` prompts the user to `describe the image you are looking for` in the command line. You'll need to specify the name of the collection that you want to query using the `--collection_name` arg.
 
 ```
-python query_image_db.py
+python query_image_db.py --collection_name <collection_name>
 ```
 
 - The text input by the user is embedded using the same `OpenCLIPEmbeddingFunction` used to embed the images when adding them to the database. 
 - The `n` image embeddings which are closest to the text embedding (by what distance metric???) are retrieved (where `n` is the `num_results_to_retrieve` parameter defined in `config.py`)
-- The text labels associated with these images are returned
+- The image most similar to the query text is displayed, along with its text label
