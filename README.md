@@ -86,6 +86,6 @@ Running `query_image_db.py` prompts the user to `describe the image you are look
 python query_image_db.py --collection_name <collection_name>
 ```
 
-- The text input by the user is embedded using the same `OpenCLIPEmbeddingFunction` used to embed the images when adding them to the database. 
-- The `n` image embeddings which are closest to the text embedding (by what distance metric???) are retrieved (where `n` is the `num_results_to_retrieve` parameter defined in `config.py`)
-- The image most similar to the query text is displayed, along with its text label
+- The text input by the user is embedded using the same `OpenCLIPEmbeddingFunction` used to embed the images when adding them to the database.
+- The `n` image embeddings which are closest to the text embedding (in terms of cosine similarity) are retrieved (where `n` is the `num_results_to_retrieve` parameter defined in `config.py`).
+- The image most semantically similar to the query text is displayed, along with its text label
