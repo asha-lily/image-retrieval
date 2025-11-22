@@ -25,4 +25,12 @@ class ValidateQueryArgs(ValidateCommonArgs):
 class ValidateImageDBArgs(ValidateCommonArgs):
     data_csv_path: Path
 
+    @field_validator("data_csv_path")
+    def validate_dataset_exists(cls, value: Path):
+        if not value.exists():
+            raise PydanticCustomError(
+                "dataset_doesn't_exist_error",
+                "Dataset path doesn't exist.",
+                {"path": value}
+            )
     
