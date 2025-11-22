@@ -7,14 +7,14 @@ Create / add to an image database (chromadb 'collection')
 import argparse
 import pandas as pd
 from pathlib import Path
-from config import Config
+from image_retrieval.config import Config
 
 import chromadb
 from chromadb.utils.data_loaders import ImageLoader
 from chromadb.api.models.Collection import Collection
 from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
 
-from schemas import ValidateImageDBArgs, ValidateDataDF
+from image_retrieval.schemas import ValidateImageDBArgs, ValidateDataDF
 
 config = Config()
 
