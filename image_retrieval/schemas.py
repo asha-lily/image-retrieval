@@ -37,11 +37,11 @@ class ValidateImageDBArgs(ValidateCommonArgs):
     
 
 class ValidateDataDF(BaseModel):
-    data_df: pd.DataFrame
+    data_df_columns: list
 
-    @field_validator("data_df")
+    @field_validator("data_df_columns")
     def validate_data_df_cols(cls, value: pd.DataFrame):
-        if not list(value.columns) == ["id", "image path", "image description"]:
+        if not value == ["id", "image path", "image description"]:
             raise PydanticCustomError(
                 "invalid_dataset_columns_error",
                 "Dataset doesn't contain the expected columns.",

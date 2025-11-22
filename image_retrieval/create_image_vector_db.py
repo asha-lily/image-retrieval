@@ -21,7 +21,7 @@ config = Config()
 
 def load_csv_data(data_csv_path: Path) -> tuple[list, list, list]:
     data_df = pd.read_csv(data_csv_path)
-    ValidateDataDF(data_df)
+    ValidateDataDF(list(data_df.columns))
     ids = [str(id) for id in list(data_df["id"])]
     image_paths = [str(image_path) for image_path in list(data_df["image path"])]
     descriptions = [str(description) for description in list(data_df["image description"])]
