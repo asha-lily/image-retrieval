@@ -14,13 +14,14 @@ from chromadb.utils.data_loaders import ImageLoader
 from chromadb.api.models.Collection import Collection
 from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
 
-from schemas import ValidateImageDBArgs
+from schemas import ValidateImageDBArgs, ValidateDataDF
 
 config = Config()
 
 
 def load_csv_data(data_csv_path: Path) -> tuple[list, list, list]:
     data_df = pd.read_csv(data_csv_path)
+    ValidateDataDF(data_df)
     ids = [str(id) for id in list(data_df["id"])]
     image_paths = [str(image_path) for image_path in list(data_df["image path"])]
     descriptions = [str(description) for description in list(data_df["image description"])]

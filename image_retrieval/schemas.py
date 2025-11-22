@@ -1,3 +1,4 @@
+import pandas as pd
 from pathlib import Path
 
 from pydantic_core import PydanticCustomError
@@ -34,3 +35,15 @@ class ValidateImageDBArgs(ValidateCommonArgs):
                 {"path": value}
             )
     
+
+class ValidateDataDF(BaseModel):
+    data_df: pd.DataFrame
+
+    @field_validator("data_df")
+    def validate_data_df_cols(cls, value: pd.DataFrame):
+        if not list(value.columns) == ["id", "image path", "image description"]:
+            raise PydanticCustomError(
+                "invalid_dataset_columns_error",
+                "Dataset doesn't contain the expected columns.",
+                {"dataset columns": list(value.columns)}
+            )
