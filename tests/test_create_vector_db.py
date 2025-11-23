@@ -11,26 +11,26 @@ from image_retrieval.create_image_vector_db import VectorDBImageWriter
 
 
 @pytest.fixture
-def mock_collection():
+def mock_collection() -> Mock:
     mock = Mock()
     mock.name = "test_collection"
     return mock
 
 @pytest.fixture
-def mock_client(mock_collection):
+def mock_client(mock_collection) -> Mock:
     mock = Mock()
     mock.create_collection.return_value = mock_collection
     mock.get_or_create_collection.return_value = mock_collection
     return mock
 
 @pytest.fixture
-def mock_db_location():
+def mock_db_location() -> Mock:
     mock = Mock()
     mock.db_location = "test_db_location"
     return mock
 
 @pytest.fixture
-def sample_csv_data():
+def sample_csv_data() -> tuple[list[str], list[str], list[str]]:
     ids = ["1", "2", "3"]
     image_paths = ["sample/path/1", "sample/path/2", "sample/path/3"]
     descriptions = ["description1", "description2", "description3"]
@@ -40,7 +40,7 @@ def sample_csv_data():
 class TestVectorDBImageWriter:
 
     @pytest.fixture
-    def mock_vector_db_image_writer_instance(self, mock_client, mock_collection, mock_db_location):
+    def mock_vector_db_image_writer_instance(self, mock_client: Mock, mock_collection: Mock, mock_db_location: Mock) -> VectorDBImageWriter:
         with patch('chromadb.PersistentClient', return_value=mock_client):
             vector_db_image_writer = VectorDBImageWriter(db_location=mock_db_location)
 
@@ -50,12 +50,7 @@ class TestVectorDBImageWriter:
         return vector_db_image_writer
         
 
-    def test_create_new_collection_success(
-        self, 
-        mock_client,
-        mock_vector_db_image_writer_instance, 
-        mock_collection
-    ):
+    def test_create_new_collection_success(self, mock_client: Mock, mock_vector_db_image_writer_instance: VectorDBImageWriter, mock_collection: Mock):
         # Given
         collection_name = "test_collection"
 
@@ -70,12 +65,7 @@ class TestVectorDBImageWriter:
         )
 
     
-    def test_get_collection(
-        self, 
-        mock_client,
-        mock_vector_db_image_writer_instance, 
-        mock_collection
-    ):
+    def test_get_collection(self, mock_client: Mock, mock_vector_db_image_writer_instance: VectorDBImageWriter, mock_collection: Mock):
         # Given
         collection_name = "test_collection"
 
@@ -92,13 +82,7 @@ class TestVectorDBImageWriter:
         assert result == mock_collection
 
     
-    def test_add_to_collection(
-        self,
-        mock_client,
-        mock_vector_db_image_writer_instance, 
-        mock_collection,
-        sample_csv_data
-    ):
+    def test_add_to_collection(self, mock_client: Mock, mock_vector_db_image_writer_instance: VectorDBImageWriter, mock_collection: Mock, sample_csv_data: tuple[list[str], list[str], list[str]]):
         # Given
         data_csv_path = Path("test_path/test.csv")
         collection_name = "test_collection"
