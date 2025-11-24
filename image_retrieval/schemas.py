@@ -1,4 +1,3 @@
-import pandas as pd
 from pathlib import Path
 
 from pydantic_core import PydanticCustomError
@@ -40,7 +39,7 @@ class ValidateDataDF(BaseModel):
     data_df_columns: list
 
     @field_validator("data_df_columns")
-    def validate_data_df_cols(cls, value: pd.DataFrame):
+    def validate_data_df_cols(cls, value: list):
         if not value == ["id", "image path", "image description"]:
             raise PydanticCustomError(
                 "invalid_dataset_columns_error",
