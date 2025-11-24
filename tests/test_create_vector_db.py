@@ -40,7 +40,7 @@ def sample_csv_data() -> tuple[list[str], list[str], list[str]]:
 class TestVectorDBImageWriter:
 
     @pytest.fixture
-    def mock_vector_db_image_writer_instance(self, mock_client: Mock, mock_collection: Mock, mock_db_location: Mock) -> VectorDBImageWriter:
+    def mock_vector_db_image_writer_instance(self, mock_client: Mock, mock_db_location: Mock) -> VectorDBImageWriter:
         with patch('chromadb.PersistentClient', return_value=mock_client):
             vector_db_image_writer = VectorDBImageWriter(db_location=mock_db_location)
 
@@ -50,7 +50,7 @@ class TestVectorDBImageWriter:
         return vector_db_image_writer
         
 
-    def test_create_new_collection_success(self, mock_client: Mock, mock_vector_db_image_writer_instance: VectorDBImageWriter, mock_collection: Mock):
+    def test_create_new_collection_success(self, mock_client: Mock, mock_vector_db_image_writer_instance: VectorDBImageWriter):
         # Given
         collection_name = "test_collection"
 
